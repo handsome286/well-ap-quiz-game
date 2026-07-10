@@ -41,6 +41,18 @@ input.nick{padding:12px 16px;border-radius:12px;border:2px solid #e5e7eb;font-si
 .qtext{font-size:17px;line-height:1.8;margin-bottom:18px;font-weight:700;white-space:pre-wrap;}
 .opt{display:block;width:100%;text-align:left;padding:14px 16px;border-radius:14px;border:2px solid #e5e7eb;background:#fafafa;margin-bottom:10px;cursor:pointer;font-size:15px;line-height:1.6;}
 .opt.sel{border-color:#1f2937;background:#eef2ff;}
+.opt.correct-opt{border-color:var(--good);background:#ecfdf3;color:#15803d;font-weight:700;cursor:default;}
+.opt.wrong-opt{border-color:var(--bad);background:#fef2f2;color:#b91c1c;font-weight:700;cursor:default;}
+.opt.disabled-opt{opacity:.55;cursor:default;}
+.fb-banner{padding:12px 14px;border-radius:12px;margin:4px 0 14px;font-weight:800;font-size:15px;}
+.fb-banner.ok{background:#ecfdf3;color:#15803d;}
+.fb-banner.no{background:#fef2f2;color:#b91c1c;}
+.opt.correct-opt{border-color:var(--good);background:#ecfdf3;color:#15803d;font-weight:700;cursor:default;}
+.opt.wrong-opt{border-color:var(--bad);background:#fef2f2;color:#b91c1c;font-weight:700;cursor:default;}
+.opt.disabled-opt{opacity:.55;cursor:default;}
+.fb-banner{padding:12px 14px;border-radius:12px;margin:4px 0 14px;font-weight:800;font-size:15px;}
+.fb-banner.ok{background:#ecfdf3;color:#15803d;}
+.fb-banner.no{background:#fef2f2;color:#b91c1c;}
 .review{border-left:5px solid #e5e7eb;padding:10px 14px;margin-bottom:12px;border-radius:8px;background:#f9fafb;}
 .review.ok{border-color:var(--good);}
 .review.no{border-color:var(--bad);}
@@ -520,23 +532,43 @@ function enterLevel(levelIdx){
 function renderQuestion(){
   const qs=quizState.qs, qIdx=quizState.qIdx, answers=quizState.answers;
   const q=qs[qIdx];
+  const revealed=answers[qIdx]!==null;
   const c=CONCEPTS[Math.floor(quizState.levelIdx/3)];
   let progHtml='';
   for(let i=0;i<qs.length;i++){ progHtml+='<span class="'+(i<qIdx?'done':(i===qIdx?'now':''))+'"></span>'; }
   let optsHtml='';
   q.o.forEach(function(opt,i){
-    optsHtml+='<button class="opt '+(answers[qIdx]===i?'sel':'')+'" onclick="selectAnswer('+i+')">'+String.fromCharCode(65+i)+'. '+opt+'</button>';
+    let cls='opt';
+    let onclick=' onclick="selectAnswer('+i+')"';
+    if(revealed){
+      onclick='';
+      if(i===q.a) cls+=' correct-opt';
+      else if(i===answers[qIdx]) cls+=' wrong-opt';
+      else cls+=' disabled-opt';
+    }
+    optsHtml+='<button class="'+cls+'"'+onclick+'>'+String.fromCharCode(65+i)+'. '+opt+(revealed&&i===q.a?' ✓':'')+(revealed&&i===answers[qIdx]&&i!==q.a?' ✗':'')+'</button>';
   });
+  let feedbackHtml='';
+  if(revealed){
+    const ok=answers[qIdx]===q.a;
+    feedbackHtml='<div class="fb-banner '+(ok?'ok':'no')+'">'+(ok?'✅ 答對了！':'❌ 答錯了，正確答案是 '+String.fromCharCode(65+q.a))+'</div>'
+     +'<div class="explain">💡 解析：'+q.e+'</div>';
+  }
   document.getElementById('app').innerHTML=
    '<div class="topbar"><div class="who">'+c.icon+' '+c.name+' · 第'+(quizState.levelIdx+1)+'關</div><button class="btn btn-ghost" onclick="if(confirm(\'確定要離開本關嗎？本次進度不會被記錄\')) renderMap()">離開本關</button></div>'
    +'<div class="qcard"><div class="qprog">'+progHtml+'</div>'
    +'<div class="muted" style="margin-bottom:6px;">第 '+(qIdx+1)+' / '+qs.length+' 題</div>'
    +'<div class="qtext">'+q.q+'</div>'
    +optsHtml
-   +'<div class="footer-actions"><button class="btn btn-primary" '+(answers[qIdx]===null?'disabled':'')+' onclick="nextQuestion()">'+(qIdx===qs.length-1?'完成本關':'下一題')+'</button></div>'
+   +feedbackHtml
+   +(revealed?'<div class="footer-actions"><button class="btn btn-primary" onclick="nextQuestion()">'+(qIdx===qs.length-1?'完成本關':'下一題')+'</button></div>':'')
    +'</div>';
 }
-function selectAnswer(i){ quizState.answers[quizState.qIdx]=i; renderQuestion(); }
+function selectAnswer(i){
+  if(quizState.answers[quizState.qIdx]!==null) return;
+  quizState.answers[quizState.qIdx]=i;
+  renderQuestion();
+}
 function nextQuestion(){
   if(quizState.answers[quizState.qIdx]===null){ toast('請先選擇一個答案'); return; }
   if(quizState.qIdx<quizState.qs.length-1){ quizState.qIdx++; renderQuestion(); }
